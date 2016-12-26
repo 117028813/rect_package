@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="zh-cn">
+  <head>
+    <meta charset="utf-8">
+  	<meta http-equiv="X-UA-Compatible" content="IE=Edge"><!-- IE兼容模式 -->
+  	<meta name="viewport" content="width=device-width, initial-scale=1">
+  	<title>矩形打包算法</title>
+  	<link rel="stylesheet" href="library/bootstrap-3.3.5-dist/bootstrap-3.3.5-dist/css/bootstrap.min.css">
+  	<style>
+  	  body {
+  	  	padding: 20px;
+  	  }
+      #div-height {
+        width: 600px;
+      }
+  	  #div-box {
+  	  	position: relative;
+  	  	background-color: #eee;
+  	  	margin-top: 20px;
+        margin-bottom: 20px;
+        /*border: 1px solid #000;*/
+  	  }
+  	  img {
+  	  	position: absolute;
+  	  }
+  	</style>
+  </head>
+<body>
+  <div class="input-group" id="div-height">
+    <span class="input-group-addon">请输入外接矩形高度：</span>
+    <input type="text" class="form-control" placeholder="请输入正整数">
+    <span class="input-group-addon">px</span>
+    <span class="input-group-btn">
+      <button class="btn btn-primary" type="button">Go!</button>
+    </span>
+  </div><!-- /input-group -->
+
+  <div id="div-box">
+  	<img src="img/1.png" class="img1">
+  	<img src="img/2.png" class="img2">
+  	<img src="img/3.png" class="img3">
+  	<img src="img/4.png" class="img4">
+  	<img src="img/5.png" class="img5">
+  	<img src="img/6.png" class="img6">
+  	<img src="img/7.png" class="img7">
+  	<img src="img/8.png" class="img8">
+  </div>
+  
+  CSS Sprites代码: 
+  <pre id="css-sprites"></pre>
+
+
+
+  <script src="library/jquery-1.11.3.min.js"></script>
+  <script>
+    window.onload = function () {
+      var arr = $("img"); //存放图片
+      var divBox = $("#div-box");
+      
+      //将小矩形按照高度从大到小排序
+      arr.sort(function (x, y) {
+        return $(y).height()-$(x).height();
+      });
+      
+      //设置外接矩形尺寸
+      divBox.css({
+        "width": function () {
+          var x = 0;
+          arr.each(function (index, value) {
+            x += $(value).width();
+          });
+          return x;
+        },
+        "height": arr.eq(0).height()
+      });
+      
+      /*********************************************************************************
+      将矩形一个个的放入封闭矩形中，由最高的矩形开始，到最矮的矩形结束。放置每个矩形时尽可能靠左
+      按照数组中的顺序从高到低的矩形存放
+      *********************************************************************************/
+      
+      function packageImage() {
+        //创建二维数组，表示闭合矩形的每一个像素
+        var tab = [];//tab存储所有列
+        tab.length = $(divBox).width();//列数为divBox的宽度
+        //遍历tab的所有列，每一列存储divBox高度数的行数
+        $(tab).each(function (index, value) {
+          tab[index] = [];
+          tab[index].length = $(divBox).height();
+        });
+
+        //给闭合矩形的每一个像素赋值为true
+        $(tab).each(function (index, value) {
+          $(tab[index]).each(function (ind, val) {
+            tab[index][ind] = true;
+          });
+        });
+
+        //遍历数组中的每一个矩形
+        arr.each(function (index, value) {
+          var x=-1,y=-1;//用来判断是否第一次遇到true，并存储该位置
+          for(var i=0; i<tab.length; i++) {
+            for(var j=0; j<tab[i].length; j++) {
+              //如果是第一次遇到true，记下位置，继续往下遍历
+              if ( tab[i][j]==true && x==-1 && y==-1 ) {
+                x = i;
+                y = j;
+                continue;
+              }
+              if(tab[i][j] == false) {
+                if(x==-1 && y==-1) {//之前全部是false，没有遇到true，继续往下遍历
+                  continue;
+                }
+                if(i==x && j>y) {//当前位置是第一个false，x,y是之前记录的第一个true的位置
+                  if( (j-y >= $(arr[index]).height()) && (tab[x+$(arr[index]).width()-1][y]==true) ) {//能放下
+                    $(arr[index]).css({       
+                      "left": x,          
+                      "top": y
+                    });
+                    for(var i=0; i<$(arr[index]).width(); i++) {//这里i和j会在执行完后加1
+                      for(var j=0; j<$(arr[index]).height(); j++) {
+                        tab[x+i][y+j] = false;
+                      }
+                    }
+                    return true;//遍历下一个图片
+                  } else {//放不下，将上面记下的位置删除，继续往下遍历
+                    x = -1;
+                    y = -1;
+                    continue;
+                  }
+                }
+              }
+              if(i==x && j==tab[i].length-1) {//之前遇到过true，到底了
+                if( $(divBox).height()-y >= $(arr[index]).height() && tab[x+$(arr[index]).width()-1][y]==true ) {//能放下
+                  $(arr[index]).css({
+                    "left": x,
+                    "top": y
+                  });
+                  for(var i=0; i<$(arr[index]).width(); i++) {//这里i和j会在执行完后加1
+                    for(var j=0; j<$(arr[index]).height(); j++) {
+                      tab[x+i][y+j] = false;
+                    }
+                  }
+                  return true;//遍历下一个图片
+                } else {
+                  x = -1;
+                  y = -1;
+                  break;//结束此列，开始下一列遍历
+                }
+              }
+            }
+          }   
+        });
+      }
+
+      //计算闭合矩形的宽度
+      function computeBoxWidth() {
+        var boxWidth = [];
+        arr.each(function (index, value) {
+          boxWidth.push($(this).width()+$(this).position().left);
+        });
+        boxWidth.sort(function (x, y) {
+          return y-x;
+        });
+        divBox.width(boxWidth[0]);
+      }
+      
+      //返回目标图片的CSSSprites代码
+      function writeCssSprites(img) {
+        var strPositionLeft = "";
+        var strPositionTop = "";
+        if (img.position().left == 0) {
+          strPositionLeft = "0";
+        } else {
+          strPositionLeft = "-" + img.position().left + "px";
+        }
+        if (img.position().top == 0) {
+          strPositionTop = "0";
+        } else {
+          strPositionTop = "-" + img.position().top + "px";
+        }
+        var str = "."+img.attr("class")+" { width: "+img.width()+"px; height: "+img.height()+"px; background-image: url('img/combine.png'); background-repeat: no-repeat; background-position: "+strPositionLeft+" "+strPositionTop+"}";
+        return str;
+      }
+
+      
+
+      //点击按钮开始进行图片排序
+      $("button").click(function () {
+        //首先要重置外接矩形
+        divBox.css({
+          "width": function () {
+          var x = 0;
+          arr.each(function (index, value) {
+            x += $(value).width();
+          });
+          return x;
+          },
+          "height": arr.eq(0).height()
+        });
+        var reg = /^[1-9]+[0-9]*$/;//正则用来匹配正整数
+        if ( reg.test($("input").val()) ) {
+          if ( $("input").val() >= arr.eq(0).height() ) {
+            console.log("running...");
+            $(divBox).height($("input").val());//将divBox的高度设置为输入的值
+            packageImage();//开始排列图片
+            computeBoxWidth();//设置外接矩形宽度
+            $("#css-sprites").empty();
+            arr.each(function (index, value) {
+              var str = writeCssSprites($(value));
+              $("<p>").text(str).appendTo($("#css-sprites"));
+            });
+            console.log("complete");
+          } else {
+            alert("外接矩形高度不能小于"+arr.eq(0).height()+"px");
+            return false;
+          }
+        } else if ( $("input").val()=="" ) {
+          alert("请输入外接矩形高度");
+          return false;
+        } else {
+          alert("请输入正确的数字");
+          return false;
+        }
+      });
+
+      /*************************************************************
+      由于此算法的时间复杂度太大，计算出一个高度下的排列就比较耗费
+      时间了。如果按照像素增量为1增加高度，闭合矩形的宽度等于最宽
+      矩形的宽度为止，算出所有情况下的闭合矩形面积，最后选出面积
+      最小的闭合矩形。程序根本就运行不起来。所以我使用此算法的代码
+      就写到这里为止，虽然复杂度很大，但是代码是没有问题的，可以
+      完美的排列矩形。
+      *************************************************************/
+    };
+  </script>
+</body>
+</html>
